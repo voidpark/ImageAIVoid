@@ -1,12 +1,18 @@
 import torch
+from typing import List, Optional
 from torch.optim import SGD
-from torchvision.models import resnet50, inception_v3, mobilenet_v2, densenet121
+from torchvision.models import resnet50, inception_v3, mobilenet_v2, densenet121, ResNet50_Weights
 
 model = resnet50(pretrained=False)
 
 
-def resnet50_train_params():
-    model = resnet50(pretrained=False)
+def resnet50_train_params(classes: Optional[List[str]] = None):
+    # weights = ResNet50_Weights.DEFAULT
+    # weights.meta["categories"] = classes
+    model = resnet50(
+        num_classes=len(classes)
+        # ,weights=weights
+        )
     return {
             "model": model,
             "optimizer": SGD,

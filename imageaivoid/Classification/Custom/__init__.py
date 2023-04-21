@@ -3,7 +3,7 @@ import os
 import copy
 import re
 import json
-from typing import List, Tuple, Union
+from typing import List, Tuple, Union, Optional
 from PIL import Image
 import numpy as np
 
@@ -22,6 +22,8 @@ from tqdm import tqdm
 from ...backend_check.model_extension import extension_check
 
 
+def test():
+    print("hello test")
 
 class ClassificationModelTrainer():
     """
@@ -34,6 +36,7 @@ class ClassificationModelTrainer():
         self.__model_type = ""
         self.__device = "cuda" if torch.cuda.is_available() else "cpu"
         self.__data_dir = ""
+        self.__image_dataset = None
         self.__data_loaders = None
         self.__class_names = None
         self.__dataset_sizes = None
@@ -111,26 +114,30 @@ class ClassificationModelTrainer():
             for param in self.__model.parameters():
                 param.requires_grad = False
 
-    def __load_data(self, batch_size : int = 8) -> None:
-        
+    def load_dataset(self) -> List[str]:
         if not self.__data_dir:
             raise RuntimeError("The dataset directory not yet set.")
-        image_dataset = {
+        self.__image_dataset = {
                         x:datasets.ImageFolder(
                                 os.path.join(self.__data_dir, x),
                                 data_transforms2[x] if self.__model_type=="inception_v3" else data_transforms1[x]
                             )
                         for x in ["train", "test"]
                     }
+        self.__class_names = self.__image_dataset["train"].classes
+        return self.__class_names
+
+    def __load_data(self, batch_size : int = 8) -> None:
+        if not self.__image_dataset:
+            raise RuntimeError("The image dataset not yet set.")
         self.__data_loaders = {
                         x:torch.utils.data.DataLoader(
-                                image_dataset[x], batch_size=batch_size,
+                                self.__image_dataset[x], batch_size=batch_size,
                                 shuffle=True
                             )
                         for x in ["train", "test"]
                     }
-        self.__dataset_sizes = {x:len(image_dataset[x]) for x in ["train", "test"]}
-        self.__class_names = image_dataset["train"].classes
+        self.__dataset_sizes = {x:len(self.__image_dataset[x]) for x in ["train", "test"]}
         self.__dataset_name = os.path.basename(self.__data_dir.rstrip(os.path.sep))
 
     def setDataDirectory(self, data_directory : str = "") -> None:
@@ -167,13 +174,13 @@ class ClassificationModelTrainer():
         self.__model_type = "mobilenet_v2"
         self.__training_params = mobilenet_v2_train_params()
 
-    def setModelTypeAsResNet50(self) -> None:
+    def setModelTypeAsResNet50(self, classes: Optional[List[str]] = None) -> None:
         """
         'setModelTypeAsResNet50()' is used to set the model type to the ResNet50 model.
         :return:
         """
         self.__model_type = "resnet50"
-        self.__training_params = resnet50_train_params()
+        self.__training_params = resnet50_train_params(classes)
 
     def setModelTypeAsInceptionV3(self) -> None:
         """
